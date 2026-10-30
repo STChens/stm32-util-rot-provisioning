@@ -70,6 +70,10 @@ def update_define_in_file(file_path: str, define_name: str, new_value: str) -> N
     new_define_line = f"{leading_ws}{define_type} {define_name}{spacing}{new_value}{trailing_semicolon}{line_ending}"
     updated_content = define_pattern.sub(new_define_line, content)
 
+    if (updated_content == content):
+        logger.debug(f"No changes made to '{define_name}' in '{file_path}'; the value is already '{new_value}'.")
+        return  # No changes made, exit early
+
     # Write the updated content back to the file
     with open(file_path, "w") as file:
         file.write(updated_content)
@@ -116,6 +120,10 @@ def update_variable_in_file(file_path: str, variable_name: str, new_value: str) 
     # Replace the old value with the new value, preserving the spacing
     new_variable_line = f"{leading_spacing}{variable_name}{spacing_around_equals}{new_value};"
     updated_content = variable_pattern.sub(new_variable_line, content)
+
+    if (updated_content == content):
+        logger.debug(f"No changes made to '{variable_name}' in '{file_path}'; the value is already '{new_value}'.")
+        return  # No changes made, exit early
 
     # Write the updated content back to the file
     with open(file_path, "w") as file:

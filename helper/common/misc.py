@@ -12,6 +12,9 @@
 # ****************************************************************************
 
 import os
+from typing import Iterable
+
+from helper.exception.rot_exception import RoTValueError
 
 
 def create_directory_if_missing(output_path: str) -> None:
@@ -42,3 +45,24 @@ def create_directory_if_missing(output_path: str) -> None:
     if not os.path.exists(output_dir):
         # Create the directory if it does not exist
         os.makedirs(output_dir)
+
+
+def format_values_with_or(values: Iterable[str]) -> str:
+    """
+    Formats values as a comma-separated list with "or" before the last item.
+
+    Parameters:
+    values (Iterable[str]): The sequence of string values to format.
+
+    Returns:
+    str: The formatted string with values separated by commas and "or" before
+         the last item.
+
+    Raises:
+    RoTValueError: If fewer than two values are provided.
+    """
+    values = list(values)
+    if len(values) < 2:
+        raise RoTValueError("At least two values are required to format a list with 'or'.")
+
+    return f"{', '.join(values[:-1])} or {values[-1]}"

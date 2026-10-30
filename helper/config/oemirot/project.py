@@ -12,14 +12,15 @@
 # ****************************************************************************
 
 import logging
-from helper.config.project_config import Project_Config
+from helper.config.project import ProjectConfig
+from helper.config.variant import OEMIROT_VARIANT
 
 logger = logging.getLogger()
 
 
-class OEMiRoT_Config(Project_Config):
+class OEMiRoTProjectConfig(ProjectConfig):
     '''
-    OEMiRoT_Config is a configuration handler class to handle OEMiRoT ini file.
+    OEMiRoTProjectConfig is a configuration handler class to handle OEMiRoT ini file.
 
     INI file example (path can be relative or absolute, relative paths are resolved
     relative to the location of the ini file):
@@ -32,7 +33,7 @@ class OEMiRoT_Config(Project_Config):
         [iar]
         linker = /path/to/iar/linker
 
-    Methods (inherited from Project_Config):
+    Methods (inherited from ProjectConfig):
         get_provisioning_ini_path() -> str:
             Returns the absolute provisioning ini path.
         get_compiler_linker(compiler: str) -> str:
@@ -44,4 +45,5 @@ class OEMiRoT_Config(Project_Config):
     '''
 
     def __init__(self, config_path: str):
-        super().__init__(config_path, image_types=[], header_list=["mcuboot_config", "flash_layout", "boot_hal_cfg"])
+        super().__init__(config_path, OEMIROT_VARIANT.provisioning_config_cls, image_types=[], header_list=[
+            "mcuboot_config", "flash_layout", "boot_hal_cfg"])

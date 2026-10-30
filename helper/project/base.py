@@ -20,26 +20,27 @@ from helper.common.log import ROT_Logger
 from helper.tools.tpc import TPC
 from helper.tools.tools_config import Tools_Config
 
-from helper.config.project_config import Project_Config
-from helper.config.provisioning_config import Provisioning_Config
-from helper.config.example_config import Example_Config
-from helper.config.provisioning_config import Provisioning_Config
-from helper.config.memory_config import Memory_Config
-from helper.config.generic_flash_layout import Generic_FlashLayout
+from helper.config.project import ProjectConfig
+from helper.config.example import ExampleConfig
+from helper.config.flash_layout_base import BaseFlashLayout
+from helper.config.variant import RoTVariant
 
 from helper.common.misc import create_directory_if_missing
 from helper.common.hxml import extract_output_file_path, update_xml_value_by_name, update_xml_value_by_title
-from helper.common.update_file_handler import update_define_in_file
+from helper.common.update_file_handler import update_define_in_file, update_variable_in_file
 
 from helper.exception.rot_exception import RoTNotImplementedError
 
 logger = logging.getLogger()
 
 
-class Project_Generic:
-    def __init__(self, config: Project_Config, logger: ROT_Logger, has_postbuild=False, has_prebuild=False):
+class BaseProject:
+
+    def __init__(self, config: ProjectConfig, logger: ROT_Logger, variant: RoTVariant,
+                 has_postbuild=False, has_prebuild=False):
         self.config = config
         self.logger = logger
+        self.variant = variant
         self.has_postbuild = has_postbuild
         self.has_prebuild = has_prebuild
         self._load_additional_configs()
@@ -48,28 +49,29 @@ class Project_Generic:
 
     def _load_additional_configs(self):
         """
-        Loads additional configuration files that can be used.
+        Loads the configuration objects needed by project helpers.
 
-        This method initializes the following configuration objects:
-            - Provisioning_Config: Loaded from the provisioning INI file path found in the project config.
-            - Tools_Config: Loaded from the tools environment variable defined in the provisioning config.
-            - Example_Config: Loaded from the example JSON file path specified in the provisioning config.
-            - Memory_Config: Loaded from the memory config INI file path specified in the provisioning config.
-
-        Each configuration object is assigned to an instance variable for later use.
+        This method initializes the following instance attributes:
+            - provisioning_config: Created from the provisioning INI path referenced by the project config.
+            - tools_config: Loaded from the tools environment variable name resolved by the project config.
+            - example_config: Loaded from the example JSON path defined by the provisioning config.
+            - memory_config: Reused from the provisioning config created for the current variant.
         """
-        self.provisioning_config = Provisioning_Config(self.config.get_provisioning_ini_path())
-        self.tools_config = Tools_Config(self.config.get_tools_bin_env_name())
-        self.example_config = Example_Config(self.provisioning_config.get_example_json_path())
-        self.memory_config = Memory_Config(self.provisioning_config.get_memory_config_ini_path(), self.example_config)
+        if self.variant is None:
+            raise RoTNotImplementedError("Project variant must be defined by subclasses.")
 
-    def _compute_flash_layout(self) -> Generic_FlashLayout:
+        self.provisioning_config = self.variant.provisioning_config_cls(self.config.get_provisioning_ini_path())
+        self.tools_config = Tools_Config(self.config.get_tools_bin_env_name())
+        self.example_config = ExampleConfig(self.provisioning_config.get_example_json_path())
+        self.memory_config = self.provisioning_config.memory_config
+
+    def _compute_flash_layout(self) -> BaseFlashLayout:
         """
         Computes the flash layout for the project. It can later be used by accessing self.flash_layout.
 
         This method should be implemented by subclasses to load the right flash layout type.
         Returns:
-            Generic_FlashLayout: The computed flash layout object.
+            BaseFlashLayout: The computed flash layout object.
 
         Raises:
             RoTNotImplementedError: If the method is not implemented by a subclass.
@@ -262,37 +264,39 @@ class Project_Generic:
             binary_path, os.path.dirname(image_xml_path))
         self._update_image_xml(type, "Output", "Image output file", "Value", rel_path_in_image_xml)
 
-    def _update_image_xml_keys_path(self, type: str):
+    def _update_image_xml_keys_path(self, type: str, key_path: str):
         """
         Updates the keys path ("Firmware image generation") in the image XML for the specified type.
 
         Args:
             type (str): The type of the image (defined in project config ini file, e.g `provisioning` or `fwu`).
+            key_path (str): The path to the keys XML file.
         """
-        binary_path = self.provisioning_config.get_config_keys_xml_path()
         image_xml_path = self.config.get_image_xml_path(type)
         rel_path_in_image_xml = os.path.relpath(
-            binary_path, os.path.dirname(image_xml_path))
+            key_path, os.path.dirname(image_xml_path))
         update_xml_value_by_title(image_xml_path, "GlobalParam", "Firmware image generation",
                                   "LinkedXML", rel_path_in_image_xml)
 
-    def _update_image_xml_hex_format(self, type: str):
+    def _update_image_xml_hex_format(self, type: str, field: str = "Value"):
         """
         Updates the firmware download area offset ("Firmware download area offset") in the image XML for the specified type.
         Args:
             type (str): The type of the image (defined in project config ini file, e.g `provisioning` or `fwu`).
+            field (str): The XML field to update (default is "Value"). Can be forced to "Default" if needed.
         """
         value = f"0x{self.flash_layout.get_flash_layout('ROM_APPLI_HEX_FORMAT'):X}"
-        self._update_image_xml(type, "Param", "Firmware download area offset", "Value", value)
+        self._update_image_xml(type, "Param", "Firmware download area offset", field, value)
 
-    def _update_image_xml_firmware_area_size(self, type: str):
+    def _update_image_xml_firmware_area_size(self, type: str, field: str = "Value"):
         """
         Updates the firmware area size ("Firmware area size") in the image XML for the specified type.
         Args:
             type (str): The type of the image (defined in project config ini file, e.g `provisioning` or `fwu`).
+            field (str): The XML field to update (default is "Value"). Can be forced to "Default" if needed.
         """
         value = f"0x{self.flash_layout.get_flash_layout('FLASH_PRIMARY_APP_SLOT_SIZE'):X}"
-        self._update_image_xml(type, "Param", "Firmware area size", "Value", value)
+        self._update_image_xml(type, "Param", "Firmware area size", field, value)
 
     def _update_image_xml_input_path(self, type: str):
         """
@@ -318,6 +322,8 @@ class Project_Generic:
         """
         Updates the define value in the linker file for the specified compiler from project ini file.
         It uses the flash layout to get the value associated with the define.
+        For linker scripts with a `.ld` extension, update variable syntax is used;
+        other linker formats use define syntax.
         Value from flash layout is converted to hexadecimal format before updating the linker file.
 
         Args:
@@ -326,7 +332,10 @@ class Project_Generic:
         """
         linker_path = self.config.get_compiler_linker(compiler)
         value = f"0x{self.flash_layout.get_flash_layout(define):X}"
-        update_define_in_file(linker_path, define, value)
+        if os.path.splitext(linker_path)[1].lower() == ".ld":
+            update_variable_in_file(linker_path, define, value)
+        else:
+            update_define_in_file(linker_path, define, value)
 
     def _update_header_define(self, header_name: str, define_name: str):
         """

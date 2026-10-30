@@ -28,7 +28,7 @@ class LifecycleType(Enum):
     PRODUCT_STATE = "product_state"
 
 
-class Example_Config(metaclass=Singleton):
+class ExampleConfig(metaclass=Singleton):
     """
     Example_Config is a base class for retrieving configuration example in JSON-based files using the Singleton pattern.
 
@@ -46,6 +46,9 @@ class Example_Config(metaclass=Singleton):
         get_board() -> Dict:
             Retrieves the value associated with board category.
 
+        get_lifecycle() -> Dict:
+            Retrieves the value associated with lifecycle category.
+
         get_memory() -> Dict:
             Retrieves the value associated with memory category.
 
@@ -57,6 +60,12 @@ class Example_Config(metaclass=Singleton):
 
         get_mcuboot() -> Dict:
             Retrieves the value associated with mcuboot category.
+
+        get_obk() -> Dict:
+            Retrieves the value associated with obk category.
+
+        get_obk_mode() -> str:
+            Retrieves the CubeProgrammer connection mode for OBK programming.
 
         get_lifecycle_type() -> LifecycleType:
             Retrieves the lifecycle type from the board category.
@@ -110,6 +119,23 @@ class Example_Config(metaclass=Singleton):
         """
         return self.get_category("board")
 
+    def get_da_certificates_supported(self) -> bool:
+        """Returns whether certificate-based DA authentication is supported."""
+        return self.get_board().get("da_certificates_supported", True)
+
+    def get_static_config(self) -> bool:
+        """Returns whether the target uses a fixed, non-interactive configuration."""
+        return self.get_board().get("static_config", False)
+
+    def get_lifecycle(self) -> Dict:
+        """
+        Retrieves the value associated with lifecycle category in the JSON.
+
+        Returns:
+            Dict: A dictionary associated with the lifecycle category key.
+        """
+        return self.get_category("lifecycle")
+
     def get_memory(self) -> Dict:
         """
         Retrieves the value associated with memory category in the JSON.
@@ -145,6 +171,19 @@ class Example_Config(metaclass=Singleton):
             Dict: A dictionary associated with the mcuboot category key.
         """
         return self.get_category("mcuboot")
+
+    def get_obk(self) -> Dict:
+        """
+        Retrieves the value associated with obk category in the JSON.
+
+        Returns:
+            Dict: A dictionary associated with the obk category key.
+        """
+        return self.get_category("obk")
+
+    def get_obk_mode(self) -> str:
+        """Returns the CubeProgrammer mode used for OBK programming."""
+        return self.config.get("obk", {}).get("mode", "hotplug")
 
     def get_lifecycle_type(self) -> LifecycleType:
         """

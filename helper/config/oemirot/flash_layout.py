@@ -11,11 +11,18 @@
 #
 # ****************************************************************************
 
-from helper.config.generic_flash_layout import Generic_FlashLayout
+from helper.config.flash_layout_base import BaseFlashLayout
 from helper.exception.rot_exception import RoTNotImplementedError, RoTValueError
+from helper.config.example import ExampleConfig
+from helper.config.oemirot.memory import OEMiRoTMemoryConfig
+from helper.config.oemirot.provisioning import OEMiRoTInstallationMode
 
 
-class FlashLayout_OEMiRoT(Generic_FlashLayout):
+SWAP_MAX_FLASH_SIZE = 0x400000
+SWAP_MAX_PROG_SIZE = 16
+
+
+class OEMiRoTFlashLayout(BaseFlashLayout):
     """
     FlashLayout is a class that calculates and manages the flash memory layout for a specific hardware configuration.
 
@@ -28,6 +35,11 @@ class FlashLayout_OEMiRoT(Generic_FlashLayout):
         RoTNotImplementedError: If the isolation flag is activated.
         RoTValueError: If the computed flash layout exceeds the total memory size.
     """
+
+    def __init__(self, example_config: ExampleConfig, memory_config: OEMiRoTMemoryConfig, installation_mode: OEMiRoTInstallationMode):
+        self.installation_mode = installation_mode
+        super().__init__(example_config, memory_config)
+        self.memory_config = memory_config
 
     def _calculate_flash_layout(self) -> dict:
         """
@@ -56,6 +68,9 @@ class FlashLayout_OEMiRoT(Generic_FlashLayout):
         - FLASH_PRIMARY_DATA_CONFIRM_OFFSET: Offset for the primary data confirmation.
         - FLASH_PRIMARY_APP_VERSION_OFFSET: Offset for the primary application version.
         - FLASH_PRIMARY_DATA_VERSION_OFFSET: Offset for the primary data version.
+        - ROM_APPLI_ADDRESS: Address for the application.
+        - ROM_APPLI_SIZE: Size of the application for the linker file.
+        - ROM_APPLI_HEX_FORMAT: Hex format address for the application.
 
         Returns:
             dict: A dictionary containing all calculated flash layout definitions and their corresponding values.
@@ -95,7 +110,7 @@ class FlashLayout_OEMiRoT(Generic_FlashLayout):
             secondary_app_slot_offset, app_slot_size, self.img_install_req_size
         )
         primary_app_confirm_offset = self._compute_confirm_offset(
-            primary_app_slot_offset, app_slot_size, self.img_install_req_size, self.memory_prog_size
+            primary_app_slot_offset, app_slot_size, self.img_install_req_size, self.img_max_align_size
         )
         primary_app_version_offset = primary_app_slot_offset + self.img_version_offset
 
@@ -108,12 +123,22 @@ class FlashLayout_OEMiRoT(Generic_FlashLayout):
                 secondary_data_slot_offset, data_slot_size, self.img_install_req_size
             )
             primary_data_confirm_offset = self._compute_confirm_offset(
-                primary_data_slot_offset, data_slot_size, self.img_install_req_size, self.memory_prog_size
+                primary_data_slot_offset, data_slot_size, self.img_install_req_size, self.img_max_align_size
             )
             primary_data_version_offset = primary_data_slot_offset + self.img_version_offset
 
         rom_appli_address = self.base + primary_app_slot_offset + \
             self.vtor_alignment
+
+        # Compute trailer_swap_size if installation mode is swap
+        if self.installation_mode == OEMiRoTInstallationMode.SWAP:
+            if (self.total_memory_size == SWAP_MAX_FLASH_SIZE and self.memory_prog_size == SWAP_MAX_PROG_SIZE):
+                trailer_swap_size = self.memory_block_size * 3
+            else:
+                trailer_swap_size = self.memory_block_size * 2
+        else:
+            trailer_swap_size = 0
+
         # Fill the dictionary with calculated flash layout definitions
         flash_layout["FLASH_ROT_CODE_OFFSET"] = rot_code_offset
         flash_layout["FLASH_ROT_CODE_SIZE"] = rot_code_size
@@ -144,7 +169,8 @@ class FlashLayout_OEMiRoT(Generic_FlashLayout):
 
         # For application
         flash_layout["ROM_APPLI_ADDRESS"] = rom_appli_address
-        flash_layout["ROM_APPLI_SIZE"] = app_slot_size - self.vtor_alignment
+        flash_layout["TRAILER_SWAP_SIZE"] = trailer_swap_size
+        flash_layout["ROM_APPLI_SIZE"] = app_slot_size - self.vtor_alignment - trailer_swap_size
         flash_layout["ROM_APPLI_HEX_FORMAT"] = self.base + primary_app_slot_offset
 
         # For application data
@@ -160,6 +186,26 @@ class FlashLayout_OEMiRoT(Generic_FlashLayout):
             flash_layout["MCUBOOT_NS_DATA_IMAGE_NUMBER"] = 0
         return flash_layout
 
+    def _validate_swap_mode(self) -> None:
+        """
+        Validates SWAP-specific constraints.
+
+        Raises:
+            RoTValueError:
+            -If the flash size exceeds SWAP_MAX_FLASH_SIZE or programming size exceeds SWAP_MAX_PROG_SIZE.
+            -If the application or data slot size is too small to accommodate the swap trailer.
+        """
+        if self.total_memory_size > SWAP_MAX_FLASH_SIZE or self.memory_prog_size > SWAP_MAX_PROG_SIZE:
+            raise RoTValueError(
+                f"SWAP installation mode is not supported yet for flash sizes greater than {SWAP_MAX_FLASH_SIZE} or programming sizes greater than {SWAP_MAX_PROG_SIZE}."
+            )
+        trailer_swap_size = self.flash_layout["TRAILER_SWAP_SIZE"]
+        if self.flash_layout["FLASH_PRIMARY_APP_SLOT_SIZE"] <= trailer_swap_size or \
+                (self.flash_layout["DATA_IMAGE_NUMBER"] > 0 and self.flash_layout["FLASH_PRIMARY_DATA_SLOT_SIZE"] <= trailer_swap_size):
+            raise RoTValueError(
+                f" Application and/or data slot sizes must be greater than the swap trailer size ({hex(trailer_swap_size)}). "
+                f"Please update '{self.memory_config.config_path}'.")
+
     def _validate_flash_layout(self) -> None:
         """
         Validates the computed flash layout to ensure memory regions do not exceed total available memory.
@@ -167,9 +213,11 @@ class FlashLayout_OEMiRoT(Generic_FlashLayout):
         Raises:
             RoTValueError: If the computed flash layout exceeds the total memory size.
         """
+        if self.installation_mode == OEMiRoTInstallationMode.SWAP:
+            self._validate_swap_mode()
+
         end_offset = self.flash_layout.get("FLASH_SECONDARY_DATA_SLOT_OFFSET", None) + \
             self.flash_layout.get("FLASH_SECONDARY_DATA_SLOT_SIZE", None) - 1
-        total_memory_size = int(self.memory_hw["total_size"], 16)
-        if end_offset >= total_memory_size:
+        if end_offset >= self.total_memory_size:
             raise RoTValueError(
                 f"Computed flash layout exceeds total memory size. Please update '{self.memory_config.config_path}'.")

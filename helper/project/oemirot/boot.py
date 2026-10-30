@@ -12,25 +12,28 @@
 # ****************************************************************************
 
 from helper.common.log import ROT_Logger
-from helper.config.oemirot_config import OEMiRoT_Config
-from helper.project.project_generic import Project_Generic
-from helper.config.flash_layout_oemirot import FlashLayout_OEMiRoT
-from helper.config.provisioning_config import RDPLevel
-from helper.config.example_config import LifecycleType
+from helper.config.variant import OEMIROT_VARIANT
+from helper.config.oemirot.project import OEMiRoTProjectConfig
+from helper.project.base import BaseProject
+from helper.config.oemirot.flash_layout import OEMiRoTFlashLayout
+from helper.config.oemirot.provisioning import INSTALLATION_MODE_HAL_DEFINES
+from helper.config.rdp_lifecycle import RDP_LEVEL_HAL_DEFINES
+from helper.config.example import LifecycleType
 from helper.common.update_file_handler import update_define_in_file
 
 
-class Project_OEMiRoT(Project_Generic):
+class OEMiRoTProjectBoot(BaseProject):
+
     def __init__(self, project_ini_path: str, logger: ROT_Logger):
-        config = OEMiRoT_Config(project_ini_path)
-        super().__init__(config, logger, has_postbuild=False, has_prebuild=True)
+        config = OEMiRoTProjectConfig(project_ini_path)
+        super().__init__(config, logger, OEMIROT_VARIANT, has_postbuild=False, has_prebuild=True)
 
     def _custom_handle_prebuild(self, compiler: str):
         """
         Prebuild is updating:
         - the linker with ROM_ROT_ADDRESS and ROM_ROT_SIZE
         - the mcuboot_config.h and flash_layout.h headers with relevant defines
-        - the boot_hal_cfg.h header with OEMIROT_OB_RDP_LEVEL_MIN define
+        - the boot_hal_cfg.h header with lifecycle-specific minimum option-byte define
         Args:
             compiler (str): The compiler type (e.g., 'iar').
         """
@@ -41,10 +44,14 @@ class Project_OEMiRoT(Project_Generic):
         # Updating mcuboot_config header
         self._update_mcuboot_config_header_file("MCUBOOT_S_DATA_IMAGE_NUMBER")
         self._update_mcuboot_config_header_file("MCUBOOT_NS_DATA_IMAGE_NUMBER")
+        self._update_installation_mode_mcuboot_config_header_file()
 
         # Updating boot_hal_cfg header
-        if self.example_config.get_lifecycle_type() == LifecycleType.RDP:
-            self._update_boot_hal_cfg_header_file()
+        lifecycle_type = self.example_config.get_lifecycle_type()
+        if lifecycle_type == LifecycleType.RDP:
+            self._update_boot_hal_cfg_rdp_level_header_file()
+        elif lifecycle_type == LifecycleType.PRODUCT_STATE:
+            self._update_boot_hal_cfg_product_state_header_file()
 
         # Updating flash_layout header
         self._update_flash_layout_header_file("FLASH_ROT_CODE_OFFSET")
@@ -66,7 +73,8 @@ class Project_OEMiRoT(Project_Generic):
         self._update_flash_layout_header_file("FLASH_ROT_HDP_END_OFFSET")
 
     def _compute_flash_layout(self):
-        return FlashLayout_OEMiRoT(self.example_config, self.memory_config)
+        return OEMiRoTFlashLayout(self.example_config, self.memory_config,
+                                  self.provisioning_config.get_oemirot_installation_mode())
 
     def _update_mcuboot_config_header_file(self, define_name: str):
         """
@@ -76,6 +84,17 @@ class Project_OEMiRoT(Project_Generic):
         """
         self._update_header_define("mcuboot_config", define_name)
 
+    def _update_installation_mode_mcuboot_config_header_file(self):
+        """
+        Updates the define "INSTALLATION_MODE" in mcuboot_config.h header file
+        with the installation mode value retrieved from the provisioning config.
+        Raises:
+            RoTValueError: If the configured installation mode is not supported.
+        """
+        installation_mode = self.provisioning_config.get_oemirot_installation_mode()
+        header_path = self.config.get_header_path("mcuboot_config")
+        update_define_in_file(header_path, "INSTALLATION_MODE", INSTALLATION_MODE_HAL_DEFINES[installation_mode])
+
     def _update_flash_layout_header_file(self, define_name: str):
         """
         Updates the define in flash_layout.h header file with the value from flash layout.
@@ -84,20 +103,25 @@ class Project_OEMiRoT(Project_Generic):
         """
         self._update_header_define("flash_layout", define_name)
 
-    def _update_boot_hal_cfg_header_file(self):
+    def _update_boot_hal_cfg_rdp_level_header_file(self):
         """
         Updates the define "OEMIROT_OB_RDP_LEVEL_MIN" in boot_hal_cfg.h header file
         with the min RDP level value retrieved from the provisioning config.
-        By default the value is set to "HAL_FLASH_ITF_OB_RDP_LEVEL_0".
-        If the min RDP level is RDP_2_BS, the value is set to "HAL_FLASH_ITF_OB_RDP_LEVEL_2_WBS".
-        If the min RDP level is RDP_2, the value is set to "HAL_FLASH_ITF_OB_RDP_LEVEL_2".
         """
         header_path = self.config.get_header_path("boot_hal_cfg")
-        rdp_min_level = self.provisioning_config.get_rdp_level("min")
-        value = "HAL_FLASH_ITF_OB_RDP_LEVEL_0"
-        match rdp_min_level:
-            case RDPLevel.RDP_2_BS:
-                value = "HAL_FLASH_ITF_OB_RDP_LEVEL_2_WBS"
-            case RDPLevel.RDP_2:
-                value = "HAL_FLASH_ITF_OB_RDP_LEVEL_2"
-        update_define_in_file(header_path, "OEMIROT_OB_RDP_LEVEL_MIN", value)
+        rdp_min_level = self.provisioning_config.lifecycle_config.get_rdp_level("min")
+        update_define_in_file(header_path, "OEMIROT_OB_RDP_LEVEL_MIN", RDP_LEVEL_HAL_DEFINES[rdp_min_level])
+
+    def _update_boot_hal_cfg_product_state_header_file(self):
+        """
+        Updates the define "OEMIROT_OB_PRODUCT_STATE_MIN" in boot_hal_cfg.h header file
+        with the min product state value retrieved from the provisioning config.
+        """
+        header_path = self.config.get_header_path("boot_hal_cfg")
+        min_product_state = self.provisioning_config.lifecycle_config.get_product_state("min")
+        hal_define = self.provisioning_config.lifecycle_config.get_product_state_hal_define(
+            min_product_state)
+        update_define_in_file(
+            header_path,
+            "OEMIROT_OB_PRODUCT_STATE_MIN",
+            hal_define)

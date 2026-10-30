@@ -11,74 +11,39 @@
 #
 # ****************************************************************************
 
-import logging, os
-from helper.common.hxml import extract_output_file_path, update_xml_value_by_title, update_xml_value_by_name
+import logging
+import os
+from helper.common.hxml import (
+    extract_output_file_path,
+    update_xml_value_by_title,
+    update_xml_value_by_name,
+)
 from helper.workflow.step import Step
+from helper.workflow.common.generation_step import (
+    bin_log,
+    appli_data_configuration_substeps,
+    GenerationStep,
+    BinaryGeneration,
+    ProductStateSelection,
+    DATypeSelection,
+    SetupProductStateConfigurationStep,
+    DAConfig,
+    UserMemoryConfigurationStep,
+    AppliDataStep,
+)
 from helper.tools.tpc import TPC
 from helper.tools.tools_config import Tools_Config
-from helper.config.appli_config import Appli_Config
-from helper.config.oemirot_config import OEMiRoT_Config
-from helper.config.memory_config import Memory_Config
-from helper.config.provisioning_config import Provisioning_Config, RDPLevel
-from helper.config.flash_layout_oemirot import FlashLayout_OEMiRoT
-from helper.config.example_config import Example_Config, LifecycleType
-from helper.exception.rot_exception import RoTFatalError, RoTValueError
+from helper.config.oemirot.appli_project import AppliProjectConfig
+from helper.config.oemirot.project import OEMiRoTProjectConfig
+from helper.config.variant import OEMIROT_VARIANT
+from helper.config.oemirot.provisioning import OEMiRoTInstallationMode, OEMiRoTProvisioningConfig
+from helper.config.rdp_lifecycle import RDPLevel
+from helper.config.oemirot.flash_layout import OEMiRoTFlashLayout
+from helper.config.example import ExampleConfig, LifecycleType
+from helper.exception.rot_exception import RoTValueError
+from helper.config.oemirot.installation_mode_xml import update_installation_mode_xml_param
 
 logger = logging.getLogger()
-
-# Metadata for the overall generation step
-generation_step = {
-    "id": "generation",
-    "name": "Generation",
-    "wait_for_input": False,
-    "success": "Successful generation",
-    "skip_if_auto": False
-}
-
-# Log messages for binary generation
-bin_log = {
-    "processing": "Processing xml file ...",
-    "success": "Successful file generation"
-}
-
-# Substeps for the generation process
-generation_substeps = {
-    "bin_generation": {
-        "name": "{name} generation",
-        "texts": [{"message": "Build the {name} ({path}) and continue"}],
-        "skip_if_auto": True,
-    },
-}
-
-# Substeps for the generation process
-appli_data_step = {
-    "id": "appli_data",
-    "name": "Appli data generation",
-    "wait_for_input": False,
-    "success": "Successful appli data generation",
-    "skip_if_auto": False
-}
-
-# Substeps for the data configuration process
-appli_data_configuration_substeps = {
-    "appli_data_config":
-    {
-        "name": "Appli Data {appli_data_xml_type} configuration",
-        "texts": [
-            {
-                "message": "From TrustedPackageCreator (Image Gen tab in Secure panel)"
-            },
-            {
-                "message": "Select {appli_data_xml} as the configuration file"
-            },
-            {
-                "message": "Update the configuration (if/as needed) then generate the {appli_data_output_bin_path} file"
-            }
-        ],
-        "process": bin_log["processing"],
-        "success": bin_log["success"],
-    },
-}
 
 # Metadata for the RDP configuration step
 rdp_configuration_step = {
@@ -126,31 +91,19 @@ key_configuration_substeps = {
     },
 }
 
-# Substeps for the user memory configuration process
-user_memory_config_substep = {
-    "user_memory_config": {
-        "name": "User Memory Configuration",
-        "texts": [{"message": "Check the memory configuration in {path}"}],
+oemirot_configuration_substeps = {
+    "installation_mode_selection": {
+        "name": "OEMiRoT installation mode selection",
+        "texts": [{"message": "Updating the OEMiRoT installation mode ({path})"}],
         "questions": {
-            "message": "Is this user memory configuration correct ? ",
-            "options": ["Yes", "No"]
+            "message": "Select the OEMiRoT installation mode: ",
+            "options": [mode.value for mode in OEMiRoTInstallationMode]
         },
-        "wait_for_input": False,
         "skip_if_auto": True,
-    }
+        "wait_for_input": False,
+        "success": "Successful OEMiRoT installation mode selection",
+    },
 }
-
-
-class GenerationStep(Step):
-    """
-    Represents the main generation step in the workflow.
-    """
-
-    def __init__(self):
-        super().__init__(generation_step)
-
-    def process_step(self):
-        pass
 
 
 class RDPConfigurationStep(Step):
@@ -165,35 +118,6 @@ class RDPConfigurationStep(Step):
         pass
 
 
-class BinaryGeneration(Step):
-    """
-    Represents the binary generation substep in the generation process.
-
-    Args:
-        name (str): The name of the binary being generated.
-        bin_path (str): The path where the binary will be generated.
-    """
-
-    def __init__(self, name: str, bin_path: str):
-        super().__init__(generation_substeps["bin_generation"])
-        self.log_param = {'name': name, 'path': bin_path}
-
-    def process_step(self):
-        pass
-
-
-class AppliDataStep(Step):
-    """
-    Represents the appli data generation step in the workflow.
-    """
-
-    def __init__(self):
-        super().__init__(appli_data_step)
-
-    def process_step(self):
-        pass
-
-
 class AppliDataConfig(Step):
     """
     Represents the appli data configuration and generation substep.
@@ -202,8 +126,9 @@ class AppliDataConfig(Step):
         config: The configuration object containing paths and settings.
     """
 
-    def __init__(self, appli_data_xml_type: str, config: Provisioning_Config):
+    def __init__(self, appli_data_xml_type: str, config: OEMiRoTProvisioningConfig):
         super().__init__(appli_data_configuration_substeps["appli_data_config"])
+        self.config = config
         self.key_config_xml = config.get_config_keys_xml_path()
         self.appli_data_bin_xml = config.get_appli_data_xml_path(appli_data_xml_type)
         self.appli_data_type = appli_data_xml_type
@@ -212,21 +137,24 @@ class AppliDataConfig(Step):
             'appli_data_xml': self.appli_data_bin_xml,
             'appli_data_output_bin_path': extract_output_file_path(self.appli_data_bin_xml)}
         self.tpc = TPC(Tools_Config(config.get_tools_bin_env_name()))
-        self.example_config = Example_Config(config.get_example_json_path())
-        self.flash_layout = FlashLayout_OEMiRoT(self.example_config,
-                                                Memory_Config(config.get_memory_config_ini_path(), self.example_config))
-        self.base = int(self.example_config.get_memory()["base"], 16)
+        self.example_config = ExampleConfig(config.get_example_json_path())
 
     def _data_xml_update(self):
+        flash_layout = OEMiRoTFlashLayout(
+            self.example_config,
+            OEMIROT_VARIANT.memory_config_cls(
+                self.config.get_memory_config_ini_path(), self.example_config),
+            self.config.get_oemirot_installation_mode(),
+        )
         if self.appli_data_type == "provisioning":
-            data_size = hex(self.flash_layout.get_flash_layout("FLASH_PRIMARY_DATA_SLOT_SIZE"))
-            data_offset = hex(self.flash_layout.get_flash_layout("DATA_HEX_FORMAT"))
+            data_offset = hex(flash_layout.get_flash_layout("DATA_HEX_FORMAT"))
             update_xml_value_by_name(self.appli_data_bin_xml, "Param",
                                      "Firmware download area offset", "Value", data_offset)
-        elif self.appli_data_type == "fwu":
-            data_size = hex(self.flash_layout.get_flash_layout("FLASH_SECONDARY_DATA_SLOT_SIZE"))
-        else:
-            raise RoTFatalError(f"Unknown type of the appli data xml: {self.appli_data_type}")
+
+        installation_mode = self.config.get_oemirot_installation_mode()
+        update_installation_mode_xml_param(self.appli_data_bin_xml, installation_mode)
+
+        data_size = hex(flash_layout.get_flash_layout("FLASH_PRIMARY_DATA_SLOT_SIZE"))
         update_xml_value_by_name(self.appli_data_bin_xml, "Param", "Firmware area size", "Value", data_size)
         rel_path_in_image_xml = os.path.relpath(
             self.key_config_xml, os.path.dirname(self.appli_data_bin_xml))
@@ -247,13 +175,13 @@ class RDPKeyUpdate(Step):
         rdp_key_path (str): The path where the RDP key will be updated.
     """
 
-    def __init__(self, name: str, config: Provisioning_Config):
+    def __init__(self, name: str, config: OEMiRoTProvisioningConfig):
         super().__init__(rdp_configuration_substeps["rdp_key_update"])
         if name == "Regression RDP key file":
-            rdp_key_path = config.get_regression_rdp_key_path()
+            rdp_key_path = config.lifecycle_config.get_regression_rdp_key_path()
             self.type = "regression"
         elif name == "Transition RDP bs key file":
-            rdp_key_path = config.get_transition_bs_key_path()
+            rdp_key_path = config.lifecycle_config.get_transition_bs_key_path()
             self.type = "transition"
         self.log_param = {'name': name, 'path': rdp_key_path}
         self.name = name
@@ -262,7 +190,7 @@ class RDPKeyUpdate(Step):
     def process_step(self):
         message = f"Updating {self.log_param['name']} at {self.log_param['path']}"
         logger.debug(message)
-        rdp_key = self.config.get_rdp_key(self.type)
+        rdp_key = self.config.lifecycle_config.get_rdp_key(self.type)
         logger.debug(f"{self.log_param['name']}: {rdp_key}")
 
 
@@ -272,20 +200,23 @@ class RDPSelection(Step):
 
     Args:
         name (str): The name of the final RDP level being selected.
-        config (Provisioning_Config): The configuration object containing paths and settings.
+        config (OEMiRoTProvisioningConfig): The configuration object containing paths and settings.
     """
 
-    def __init__(self, name: str, config: Provisioning_Config):
+    def __init__(self, name: str, config: OEMiRoTProvisioningConfig):
         super().__init__(rdp_configuration_substeps["rdp_selection"])
         self.name = name
         self.log_param = {'name': self.name.capitalize(), 'path': config.config_path}
         self.config = config
 
+    def _get_question_default_candidate(self, question: dict) -> object:
+        return self.config.lifecycle_config.get_rdp_level(self.name)
+
     def process_step(self):
         # Compare final choice with min RDP level
         if self.name == "final":
             self._compare_final_with_min_rdp_levels()
-        self.config.set_rdp_level(self.name, self.choice)
+        self.config.lifecycle_config.set_rdp_level(self.name, self.choice)
 
     def _compare_final_with_min_rdp_levels(self) -> None:
         """
@@ -298,7 +229,7 @@ class RDPSelection(Step):
             RDPLevel.RDP_2_BS: 1,
             RDPLevel.RDP_2: 2
         }
-        min_level = RDPLevel(self.config.get_rdp_level("min"))
+        min_level = RDPLevel(self.config.lifecycle_config.get_rdp_level("min"))
         final_level = RDPLevel(self.choice)
         if rdp_order[final_level] < rdp_order[min_level]:
             raise RoTValueError(
@@ -313,7 +244,7 @@ class KeyConfigurationStep(Step):
         config: The configuration object containing paths and settings.
     """
 
-    def __init__(self, config: Provisioning_Config):
+    def __init__(self, config: OEMiRoTProvisioningConfig):
         super().__init__(key_configuration_substeps["key_config"])
         self.key_config_xml = config.get_config_keys_xml_path()
         self.log_param = {'key_config_xml': self.key_config_xml,
@@ -324,25 +255,27 @@ class KeyConfigurationStep(Step):
         self.tpc.gen_obk(self.key_config_xml)
 
 
-class UserMemoryConfigurationStep(Step):
+class OEMiRoTInstallationModeSelection(Step):
     """
-    Represents the user memory configuration substep in the generation process.
+    Represents the OEMiRoT installation mode selection substep.
 
     Args:
-        memory_config_path (str): Path to mx_memory_config.ini.
+        config: The OEMiRoT provisioning configuration object.
     """
 
-    def __init__(self, memory_config_path: str):
-        super().__init__(user_memory_config_substep["user_memory_config"])
-        self.log_param = {'path': memory_config_path}
+    def __init__(self, config: OEMiRoTProvisioningConfig):
+        super().__init__(oemirot_configuration_substeps["installation_mode_selection"])
+        self.config = config
+        self.log_param = {'path': config.config_path}
+
+    def _get_question_default_candidate(self, question: dict) -> object:
+        return self.config.get_oemirot_installation_mode()
 
     def process_step(self):
-        if self.choice == "No":
-            raise RoTValueError(
-                f"Update the memory configuration in '{self.log_param['path']}' and restart the provisioning.")
+        self.config.set_oemirot_installation_mode(self.choice)
 
 
-def SetupGenerationStep(config: Provisioning_Config) -> Step:
+def SetupGenerationStep(config: OEMiRoTProvisioningConfig) -> Step:
     """
     Set up the generation step by adding all necessary substeps.
 
@@ -353,26 +286,48 @@ def SetupGenerationStep(config: Provisioning_Config) -> Step:
         Step: The fully configured generation step.
     """
     generationStep = GenerationStep()
-    memoryConfigStep = UserMemoryConfigurationStep(config.get_memory_config_ini_path())
-    oemirot_config = OEMiRoT_Config(config.get_oemirot_ini_path())
-    generationStep.add_step(memoryConfigStep)
+    static_config = config.get_static_config()
+    generationStep.set_static_config(static_config)
+    if static_config is not True:
+        generationStep.add_step(OEMiRoTInstallationModeSelection(config))
+
+    def _flash_layout_factory():
+        ec = ExampleConfig(config.get_example_json_path())
+        return OEMiRoTFlashLayout(
+            ec,
+            OEMIROT_VARIANT.memory_config_cls(config.get_memory_config_ini_path(), ec),
+            config.get_oemirot_installation_mode())
+
+    oemirot_config = OEMiRoTProjectConfig(config.get_oemirot_ini_path())
+    if static_config is not True:
+        memoryConfigStep = UserMemoryConfigurationStep(
+            config.get_memory_config_ini_path(), flash_layout_factory=_flash_layout_factory)
+        generationStep.add_step(memoryConfigStep)
+    else:
+        _flash_layout_factory()
     key_config_step = KeyConfigurationStep(config)
     generationStep.add_step(key_config_step)
-    example_config = Example_Config(config.get_example_json_path())
+    example_config = ExampleConfig(config.get_example_json_path())
     if example_config.get_lifecycle_type() == LifecycleType.RDP:
         generationStep.add_step(SetupRDPConfigurationStep(config))
+    elif example_config.get_lifecycle_type() == LifecycleType.PRODUCT_STATE:
+        generationStep.add_step(SetupProductStateConfigurationStep(config))
+        if config.lifecycle_config.get_da_certificates_supported():
+            generationStep.add_step(DATypeSelection(config))
+        generationStep.add_step(DAConfig(config))
     generationStep.add_step(BinaryGeneration("OEMiRoT boot binary",
                             oemirot_config.get_build_binary_path()))
-    appli_config = Appli_Config(config.get_appli_ini_path())
+    appli_config = AppliProjectConfig(config.get_appli_ini_path())
     generationStep.add_step(BinaryGeneration("Application image", appli_config.get_image_binary_path("provisioning")))
-    memory_config = Memory_Config(config.get_memory_config_ini_path(), example_config)
+    memory_config = OEMIROT_VARIANT.memory_config_cls(
+        config.get_memory_config_ini_path(), example_config)
     appli_data_nb = int(memory_config.get_data_image_number(), 16)
     if appli_data_nb > 0:
         generationStep.add_step(SetupAppliDataConfigurationStep(config))
     return generationStep
 
 
-def SetupAppliDataConfigurationStep(config: Provisioning_Config) -> Step:
+def SetupAppliDataConfigurationStep(config: OEMiRoTProvisioningConfig) -> Step:
     """
     Set up the Appli Data configuration and generation step by adding all necessary substeps.
 
@@ -388,7 +343,7 @@ def SetupAppliDataConfigurationStep(config: Provisioning_Config) -> Step:
     return appliDataStep
 
 
-def SetupRDPConfigurationStep(config: Provisioning_Config) -> Step:
+def SetupRDPConfigurationStep(config: OEMiRoTProvisioningConfig) -> Step:
     """
     Set up the RDP configuration step by adding all necessary substeps.
 

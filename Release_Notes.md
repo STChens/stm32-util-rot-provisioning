@@ -10,14 +10,61 @@ STM32Cube enables developers to achieve design success. With a comprehensive sui
 
 The STM32Cube embedded software offer provides ready-to-use software components that can be added to a project. It includes STM32 peripheral driver APIs with two levels of abstraction, middleware, board drivers, and examples. There are several distribution channels, including the STM32CubeMX2 tool, the ST website, and GitHub. All embedded software comes with enhanced online documentation, with flowcharts and user sequences.
 
-**RoT Provisioning** is an STMicroelectronics SW pack that provides shared Python scripts to configure, build, and provision Root of Trust (RoT) examples on STM32 devices.
+**RoT Provisioning** is an STMicroelectronics SW pack that provides shared Python scripts to configure, build, and provision Root of Trust (RoT) examples and standalone Debug Authentication (DA) workflows on STM32 devices.
 
-- It centralizes common RoT provisioning logic such as memory flash layout computation, image preparation (signing/encryption), and device configuration, so that individual RoT examples can use a common framework.
+- It centralizes common RoT provisioning logic such as memory flash layout computation, image preparation (signing/encryption), device configuration, and Debug Authentication operations, so that individual workflows can use a common framework.
 
 # Update history
 
 
-<label for="collapse-section2" aria-hidden="true">__V2.0.1 / 12-June-2026__</label>
+<label for="collapse-section4" aria-hidden="true">__V2.1.0 / 25-September-2026__</label>
+<div>
+
+## Main changes
+
+- Added STiRoT provisioning support, including application and data image handling.
+- Extended OEMiRoT provisioning support to platforms featuring OBK and Debug Authentication (DA) capabilities.
+- Added standalone DA support for  provisioning, discovery, regression, and debug authentication.
+- Added dry-run support to all user scripts.
+
+
+## Contents
+
+- Core RoT provisioning logic for memory flash layouts, image preparation, and device configuration.
+- Shared Python scripts used by STM32 RoT examples to run prebuild/postbuild and provisioning flows.
+- Supported RoT example types:
+  - oemirot_dualslot
+  - oemirot_dualslot_hwcrypto
+  - stirot
+- Support DA example types:
+  - stda
+
+## Known limitations
+
+- None
+
+## Development toolchains and compilers
+
+- None
+
+## Supported devices and boards
+
+- STM32C5xx series.
+- STM32V8xx series.
+- STM32G5xx series
+- STM32H7Pxx series.
+
+## Backward compatibility
+
+- None
+
+## Dependencies
+
+- Python 3.10 or later.
+
+</div>
+
+<label for="collapse-section3" aria-hidden="true">__V2.0.1 / 12-June-2026__</label>
 <div>
 
 ## Main changes

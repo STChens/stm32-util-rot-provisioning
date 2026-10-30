@@ -24,7 +24,8 @@ custom_style = questionary.Style([
     ("question", "fg:#00ff00 bold"),   # question in green
     ("answer", "fg:#ff00ff bold"),     # submitted answer in magenta
     ("pointer", "fg:#ff0000 bold"),    # pointer in red
-    ("highlighted", "fg:#00ff00 bold"),  # highlighted choice in green
+    ("selected", "noinherit"),    # selected choice in green
+    ("highlighted", "noinherit fg:#00ff00 bold"),  # highlighted choice in green
 ])
 
 
@@ -80,6 +81,7 @@ class Step(ABC):
         self.auto = False
         self.log_param = {}
         self.choice = None
+        self._question_default = None
         self.level = 1
         self.substeps: list[Step] = []
         self.prefix = "\t"
@@ -250,12 +252,65 @@ class Step(ABC):
         message = message.format(**self.log_param)
         raw_options = question.get("options", [])
         options = [option.format(**self.log_param) for option in raw_options]
-        answer = safe_prompt(questionary.select(
+        self._resolve_question_default(question, options)
+        default = self._get_question_default()
+
+        prompt = questionary.select(
             message,
             choices=options,
-            style=custom_style
-        ))
+            default=default,
+            style=custom_style,
+        )
+        self._clear_question_default_selection(prompt, default)
+        answer = safe_prompt(prompt)
         self.choice = answer
+
+    def _clear_question_default_selection(self, prompt, default: str | None) -> None:
+        """Keep the default as the initial cursor position only."""
+        if default is None:
+            return
+        for control in prompt.application.layout.find_all_controls():
+            if hasattr(control, "selected_options") and hasattr(control, "pointed_at"):
+                control.selected_options = [
+                    value for value in control.selected_options if value != default
+                ]
+                return
+
+    def _resolve_question_default(self, question: dict, options: list[str]) -> None:
+        """
+        Resolves question default context and delegates raw default assignment.
+
+        This method should not be overridden by subclasses. Override
+        `_get_question_default_candidate` to return a raw default value.
+
+        Args:
+            question (dict): Question configuration.
+            options (list[str]): Already-formatted options for the prompt.
+        """
+        default_candidate = self._get_question_default_candidate(question)
+        self._question_default = self._normalize_question_default(default_candidate, options)
+
+    def _get_question_default_candidate(self, question: dict) -> object:
+        """
+        Returns the raw default candidate for the current question.
+
+        Subclasses can override this to compute dynamic defaults from runtime state.
+        The base implementation supports a static `questions.default` entry.
+        """
+        return question.get("default", None)
+
+    def _get_question_default(self) -> str | None:
+        """Returns the normalized question default for internal prompt handling."""
+        return self._question_default
+
+    def _normalize_question_default(self, default: object, options: list[str]) -> str | None:
+        """Formats and validates a candidate default value against available options."""
+        normalized_default = getattr(default, "value", default)
+        if isinstance(normalized_default, str):
+            normalized_default = normalized_default.format(**self.log_param)
+        if normalized_default in options:
+            return normalized_default
+        return None
 
     def _handle_wfi(self) -> None:
         """

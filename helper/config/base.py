@@ -21,9 +21,9 @@ from helper.exception.rot_exception import RoTFileNotFoundError, RoTAbsolutePath
 logger = logging.getLogger()
 
 
-class Generic_Config(metaclass=Singleton):
+class BaseConfig(metaclass=Singleton):
     """
-    Generic_Config is a base class for managing configuration files using the Singleton pattern.
+    BaseConfig is a base class for managing configuration files using the Singleton pattern.
     Args:
         config_path (str): The absolute path to the configuration file.
     Attributes:

@@ -76,17 +76,18 @@ class CubeProgrammer(CLI):
             - Reading and programming option bytes
     """
 
-    def __init__(self, tools_config: Tools_Config, stlink_sn: str = None):
+    def __init__(self, tools_config: Tools_Config, stlink_sn: str = None, dry_run: bool = False):
         """
         Initializes the instance with the CubeProgrammer path from tools configuration.
 
         Args:
             tools_config: An object containing configuration settings for tools.
             stlink_sn (str, optional): The ST-Link serial number to use for connecting to the device. Defaults to None.
+            dry_run (bool, optional): If True, commands are logged but not executed. Defaults to False.
         """
         self.stlink_sn = stlink_sn
         cmd_file_path = os.path.join(os.getcwd(), "cubeprogrammer_cmd.txt")
-        super().__init__(tools_config.get_cube_prog_path(), cmd_output_file_name=cmd_file_path)
+        super().__init__(tools_config.get_cube_prog_path(), cmd_output_file_name=cmd_file_path, dry_run=dry_run)
 
     def connect_command(self, verbose: bool = False, speed: CubeProgrammerSpeed = CubeProgrammerSpeed.RELIABLE) -> str:
         """
@@ -145,7 +146,8 @@ class CubeProgrammer(CLI):
         return " ".join(command_list)
 
     def run_command(self, verbose: bool = False, speed: CubeProgrammerSpeed = CubeProgrammerSpeed.RELIABLE, mode: CubeProgrammerMode = CubeProgrammerMode.HOT_PLUG,
-                    access_port: str = CubeProgrammerAccessPort.ACCESS_PORT_1, reset: bool = False, extra_args: str = None, match_substring: str = None) -> str:
+                    access_port: str = CubeProgrammerAccessPort.ACCESS_PORT_1, reset: bool = False, extra_args: str = None, match_substring: str = None,
+                    log_as_info: bool = False, interactive: bool = False) -> str:
         """
         Execute the CubeProgrammer command constructed with specified options.
 
@@ -159,13 +161,17 @@ class CubeProgrammer(CLI):
             extra_args (str, optional): Additional command line arguments to append. Defaults to None.
             match_substring (str, optional): If provided, filters the command output to include only lines containing this substring.
                 Defaults to None.
+            log_as_info (bool, optional): If True, logs output at INFO level; otherwise, at DEBUG level. Defaults to False.
+            interactive (bool, optional): If True, runs the command in interactive mode, allowing user input during execution. Defaults to False.
 
         Returns:
             str: The output from executing the command, optionally filtered by `match_substring`.
         """
         command = self.build_command(verbose=verbose, speed=speed, mode=mode,
                                      access_port=access_port, reset=reset, extra_args=extra_args)
-        return self.call(command_args=command, match_substring=match_substring)
+        if interactive:
+            return self.call(command_args=command, interactive=True)
+        return self.call(command_args=command, log_as_info=log_as_info, match_substring=match_substring)
 
     def reset(self, mode: CubeProgrammerMode = CubeProgrammerMode.HOT_PLUG, access_port: str = CubeProgrammerAccessPort.ACCESS_PORT_1) -> None:
         """
@@ -233,7 +239,7 @@ class CubeProgrammer(CLI):
         Returns:
             None
         """
-        command = f"-sdp \"{obk_path}\""
+        command = f"-halt -sdp \"{obk_path}\""
         self.run_command(speed=CubeProgrammerSpeed.FAST, mode=mode, access_port=access_port, extra_args=command)
 
     def erase_flash_sectors(self, start: str, end: str, mode: CubeProgrammerMode = CubeProgrammerMode.UNDER_RESET,
@@ -310,22 +316,6 @@ class CubeProgrammer(CLI):
         """
         command = f"-sdp \"{obk_file}\""
         self.run_command(mode=mode, access_port=access_port, extra_args=command)
-
-    def get_lifecycle_state(self, access_port: str = CubeProgrammerAccessPort.ACCESS_PORT_1) -> str:
-        """
-        Retrieves the current device lifecycle state by executing a debug authentication command.
-
-        Args:
-            access_port (CubeProgrammerAccessPort, optional): Access port. Defaults to CubeProgrammerAccessPort.ACCESS_PORT_1.
-
-        Returns:
-            str: The current device lifecycle state as a string.
-
-        """
-        command = f"debugauth=2"
-        lifecycle_state = self.run_command(access_port=access_port, extra_args=command, match_substring="PSA lifecycle")
-        lifecycle_state = lifecycle_state.split(":")[2]
-        return lifecycle_state.strip()
 
     def set_option_bytes(self, optbytes: dict, mode: CubeProgrammerMode = CubeProgrammerMode.UNDER_RESET,
                          access_port: str = CubeProgrammerAccessPort.ACCESS_PORT_1, reset: bool = False) -> None:

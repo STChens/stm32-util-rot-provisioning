@@ -24,7 +24,8 @@ class CLI():
     CLI class for executing shell commands and processing their output.
     """
 
-    def __init__(self, cli: str, no_double_quote: bool = False, cmd_output_file_name: str = None) -> None:
+    def __init__(self, cli: str, no_double_quote: bool = False, cmd_output_file_name: str = None,
+                 dry_run: bool = False) -> None:
         """
         Initializes the CLI class with the specified command.
 
@@ -32,13 +33,16 @@ class CLI():
             cli (str): The command line interface executable to be used.
             no_double_quote (bool, optional): If True, the command will not be wrapped in double quotes. Defaults to False.
             cmd_output_file_name (str, optional): If provided, executed commands will be logged to this file. Defaults to None.
+            dry_run (bool, optional): If True, commands are logged but not executed. Defaults to False.
         """
         self.cli = cli
         self.no_double_quote = no_double_quote
+        self.dry_run = dry_run
         self.log_array = []
         self.setup_cmd_output_file(cmd_output_file_name)
 
-    def call(self, command_args: str, log_as_info: bool = False, match_substring: str = None) -> Optional[str]:
+    def call(self, command_args: str, log_as_info: bool = False, match_substring: str = None,
+             interactive: bool = False) -> Optional[str]:
         """
         Executes a CLI command with logging, error handling, and optional output extraction.
 
@@ -46,6 +50,7 @@ class CLI():
             command_args (str): Arguments to pass to the CLI command.
             log_as_info (bool, optional): If True, logs output at INFO level; otherwise, at DEBUG level. Defaults to False.
             match_substring (str, optional): If provided, returns the last output line containing this substring. Defaults to None.
+            interactive (bool, optional): If True, lets the command use the current terminal. Defaults to False.
 
         Returns:
             Optional[str]: The last output line containing `match_substring` if specified, otherwise None.
@@ -60,9 +65,17 @@ class CLI():
             cmd = f"\"{self.cli}\" {command_args}"
         self.append_cmd_to_cmd_output_file(cmd)
         self.log_array = []
+        if self.dry_run:
+            logger.info(f"Dry run, command not executed: {cmd}")
+            return None
         logger.debug(f"Executing command: {cmd}")
         extracted_line = None
         try:
+            if interactive:
+                process = subprocess.Popen(cmd, shell=True, text=True)
+                self.handle_process_completion(process, cmd)
+                return None
+
             # Start the subprocess and open pipes to stdin, stdout, and stderr
             process = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                        stderr=subprocess.STDOUT, shell=True, text=True)

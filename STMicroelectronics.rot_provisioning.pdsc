@@ -20,6 +20,12 @@
   <url>https://developer.st.com/st-pack-server/api/v1/pack/</url>
   <supportContact/>
   <releases>
+    <release version="2.1.0" date="2026-08-27">
+      - Added STiRoT provisioning support, including application and data image handling.
+      - Extended OEMiRoT provisioning to platforms with OBK and Debug Authentication capabilities.
+      - Added standalone Debug Authentication provisioning, discovery, regression, and debug authentication support.
+      - Added dry-run support to all user scripts.
+    </release>
     <release version="2.0.1" date="2026-05-04">
       - Introduced a common project factory to reduce project-specific imports and simplify project handling.
       - Renamed `oemirot/generic_provisioning.py` to `oemirot/provisioning.py`.
@@ -45,7 +51,7 @@
   </keywords>
   <!-- Components definition -->
   <components>
-    <component Cclass="Security" Cgroup="RoT_Provisioning" Csub="Core" Cversion="1.0.1">
+    <component Cclass="Security" Cgroup="RoT_Provisioning" Csub="Core" Cversion="1.1.0">
       <description>RoT Provisioning global documentation</description>
       <files>
         <file category="doc" name="LICENSE.md"/>
@@ -59,7 +65,7 @@
         <file category="utility" name="__init__.py"/>
       </files>
     </component>
-    <component Cclass="Security" Cgroup="RoT_Provisioning" Csub="Helper" Cversion="1.0.1">
+    <component Cclass="Security" Cgroup="RoT_Provisioning" Csub="Helper" Cversion="1.1.0">
       <description>RoT Provisioning Helper component</description>
       <files>
         <file category="utility" name="helper/__init__.py"/>
@@ -73,34 +79,69 @@
         <file category="utility" name="helper/exception/__init__.py"/>
         <file category="utility" name="helper/exception/rot_exception.py"/>
         <file category="utility" name="helper/config/__init__.py"/>
-        <file category="utility" name="helper/config/appli_config.py"/>
+        <file category="utility" name="helper/config/base.py"/>
         <file category="utility" name="helper/config/config_print_utils.py"/>
-        <file category="utility" name="helper/config/example_config.py"/>
-        <file category="utility" name="helper/config/flash_layout_oemirot.py"/>
-        <file category="utility" name="helper/config/generic_config.py"/>
-        <file category="utility" name="helper/config/generic_flash_layout.py"/>
-        <file category="utility" name="helper/config/memory_config.py"/>
-        <file category="utility" name="helper/config/oemirot_config.py"/>
-        <file category="utility" name="helper/config/option_bytes.py"/>
-        <file category="utility" name="helper/config/project_config.py"/>
-        <file category="utility" name="helper/config/provisioning_config.py"/>
+        <file category="utility" name="helper/config/example.py"/>
+        <file category="utility" name="helper/config/flash_layout_base.py"/>
+        <file category="utility" name="helper/config/memory_base.py"/>
+        <file category="utility" name="helper/config/option_bytes_base.py"/>
+        <file category="utility" name="helper/config/project.py"/>
+        <file category="utility" name="helper/config/provisioning_base.py"/>
+        <file category="utility" name="helper/config/product_state_lifecycle.py"/>
+        <file category="utility" name="helper/config/rdp_lifecycle.py"/>
+        <file category="utility" name="helper/config/variant.py"/>
+        <file category="utility" name="helper/config/da/__init__.py"/>
+        <file category="utility" name="helper/config/da/option_bytes.py"/>
+        <file category="utility" name="helper/config/da/da.py"/>
+        <file category="utility" name="helper/config/oemirot/__init__.py"/>
+        <file category="utility" name="helper/config/oemirot/flash_layout.py"/>
+        <file category="utility" name="helper/config/oemirot/installation_mode_xml.py"/>
+        <file category="utility" name="helper/config/oemirot/option_bytes.py"/>
+        <file category="utility" name="helper/config/oemirot/memory.py"/>
+        <file category="utility" name="helper/config/oemirot/provisioning.py"/>
+        <file category="utility" name="helper/config/oemirot/appli_project.py"/>
+        <file category="utility" name="helper/config/oemirot/project.py"/>
+        <file category="utility" name="helper/config/stirot/__init__.py"/>
+        <file category="utility" name="helper/config/stirot/appli_project.py"/>
+        <file category="utility" name="helper/config/stirot/flash_layout.py"/>
+        <file category="utility" name="helper/config/stirot/memory.py"/>
+        <file category="utility" name="helper/config/stirot/option_bytes.py"/>
+        <file category="utility" name="helper/config/stirot/provisioning.py"/>
+        <file category="utility" name="helper/project/oemirot/__init__.py"/>
+        <file category="utility" name="helper/project/oemirot/appli.py"/>
+        <file category="utility" name="helper/project/oemirot/boot.py"/>
+        <file category="utility" name="helper/project/stirot/__init__.py"/>
+        <file category="utility" name="helper/project/stirot/appli.py"/>
         <file category="utility" name="helper/project/__init__.py"/>
+        <file category="utility" name="helper/project/appli.py"/>
+        <file category="utility" name="helper/project/base.py"/>
         <file category="utility" name="helper/project/generator.py"/>
-        <file category="utility" name="helper/project/project_appli.py"/>
-        <file category="utility" name="helper/project/project_generic.py"/>
-        <file category="utility" name="helper/project/project_oemirot.py"/>
         <file category="utility" name="helper/tools/__init__.py"/>
         <file category="utility" name="helper/tools/appli_cfg.py"/>
         <file category="utility" name="helper/tools/cube_programmer.py"/>
+        <file category="utility" name="helper/tools/cube_programmer_da.py"/>
         <file category="utility" name="helper/tools/cube_programmer_rdp.py"/>
         <file category="utility" name="helper/tools/tools_config.py"/>
         <file category="utility" name="helper/tools/tpc.py"/>
         <file category="utility" name="helper/workflow/__init__.py"/>
+        <file category="utility" name="helper/workflow/common/__init__.py"/>
+        <file category="utility" name="helper/workflow/common/dbg_auth_step.py"/>
+        <file category="utility" name="helper/workflow/common/discovery_step.py"/>
+        <file category="utility" name="helper/workflow/common/generation_step.py"/>
+        <file category="utility" name="helper/workflow/common/installation_step.py"/>
+        <file category="utility" name="helper/workflow/common/regression_step.py"/>
         <file category="utility" name="helper/workflow/process.py"/>
         <file category="utility" name="helper/workflow/step.py"/>
       </files>
     </component>
-    <component Cclass="Security" Cgroup="RoT_Provisioning" Csub="OEMiRoT" Cversion="1.0.1">
+    <component Cclass="Security" Cgroup="RoT_Provisioning" Csub="da" Cversion="1.1.0">
+      <description>DA Helper component</description>
+      <files>
+        <file category="utility" name="da/__init__.py"/>
+        <file category="utility" name="da/da.py"/>
+      </files>
+    </component>
+    <component Cclass="Security" Cgroup="RoT_Provisioning" Csub="OEMiRoT" Cversion="1.1.0">
       <description>RoT Provisioning Helper component</description>
       <files>
         <file category="utility" name="oemirot/__init__.py"/>
@@ -108,6 +149,16 @@
         <file category="utility" name="oemirot/provisioning.py"/>
         <file category="utility" name="oemirot/regression_step.py"/>
         <file category="utility" name="oemirot/installation_step.py"/>
+      </files>
+    </component>
+    <component Cclass="Security" Cgroup="RoT_Provisioning" Csub="STiRoT" Cversion="1.1.0">
+      <description>RoT Provisioning Helper component</description>
+      <files>
+        <file category="utility" name="stirot/__init__.py"/>
+        <file category="utility" name="stirot/generation_step.py"/>
+        <file category="utility" name="stirot/provisioning.py"/>
+        <file category="utility" name="stirot/regression_step.py"/>
+        <file category="utility" name="stirot/installation_step.py"/>
       </files>
     </component>
   </components>

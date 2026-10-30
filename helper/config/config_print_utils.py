@@ -50,7 +50,7 @@ def _print_items(print_config_items: Dict[str, Any]) -> None:
     """
     max_label_len = max((len(str(label)) for label in print_config_items), default=0)
     for label, value in print_config_items.items():
-        logger.info(f"{str(label).ljust(max_label_len+1)} {value}")
+        logger.info(f"{str(label).ljust(max_label_len + 1)} {value}")
 
 
 def _print_footer(print_char: str, print_width: int) -> None:

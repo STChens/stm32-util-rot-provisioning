@@ -1517,12 +1517,13 @@ comes with enhanced online documentation, with flowcharts and user
 sequences.</p>
 <p><strong>RoT Provisioning</strong> is an STMicroelectronics SW pack
 that provides shared Python scripts to configure, build, and provision
-Root of Trust (RoT) examples on STM32 devices.</p>
+Root of Trust (RoT) examples and standalone Debug Authentication (DA)
+workflows on STM32 devices.</p>
 <ul>
 <li>It centralizes common RoT provisioning logic such as memory flash
-layout computation, image preparation (signing/encryption), and device
-configuration, so that individual RoT examples can use a common
-framework.</li>
+layout computation, image preparation (signing/encryption), device
+configuration, and Debug Authentication operations, so that individual
+workflows can use a common framework.</li>
 </ul>
 </div>
 <section id="update-history" class="col-sm-12 col-lg-8">
@@ -1530,16 +1531,19 @@ framework.</li>
 <p><br />
 </p>
 <div class="collapse">
-<input type="checkbox" id="collapse-section2" checked aria-hidden="true">
-<label for="collapse-section2" aria-hidden="true"><strong>V2.0.1 /
-12-June-2026</strong></label>
+<input type="checkbox" id="collapse-section4" checked aria-hidden="true">
+<label for="collapse-section4" aria-hidden="true"><strong>V2.1.0 /
+25-September-2026</strong></label>
 <div>
 <h2 id="main-changes">Main changes</h2>
 <ul>
-<li>Introduced a common project factory to reduce project-specific
-imports and simplify project handling.</li>
-<li>Renamed <code>oemirot/generic_provisioning.py</code> to
-<code>oemirot/provisioning.py</code>.</li>
+<li>Added STiRoT provisioning support, including application and data
+image handling.</li>
+<li>Extended OEMiRoT provisioning support to platforms featuring OBK and
+Debug Authentication (DA) capabilities.</li>
+<li>Added standalone DA support for provisioning, discovery, regression,
+and debug authentication.</li>
+<li>Added dry-run support to all user scripts.</li>
 </ul>
 <h2 id="contents">Contents</h2>
 <ul>
@@ -1551,6 +1555,11 @@ prebuild/postbuild and provisioning flows.</li>
 <ul>
 <li>oemirot_dualslot</li>
 <li>oemirot_dualslot_hwcrypto</li>
+<li>stirot</li>
+</ul></li>
+<li>Support DA example types:
+<ul>
+<li>stda</li>
 </ul></li>
 </ul>
 <h2 id="known-limitations">Known limitations</h2>
@@ -1565,6 +1574,9 @@ compilers</h2>
 <h2 id="supported-devices-and-boards">Supported devices and boards</h2>
 <ul>
 <li>STM32C5xx series.</li>
+<li>STM32V8xx series.</li>
+<li>STM32G5xx series</li>
+<li>STM32H7Pxx series.</li>
 </ul>
 <h2 id="backward-compatibility">Backward compatibility</h2>
 <ul>
@@ -1577,13 +1589,16 @@ compilers</h2>
 </div>
 </div>
 <div class="collapse">
-<input type="checkbox" id="collapse-section1" aria-hidden="true">
-<label for="collapse-section1" aria-hidden="true"><strong>V2.0.0 /
-13-March-2026</strong></label>
+<input type="checkbox" id="collapse-section3" aria-hidden="true">
+<label for="collapse-section3" aria-hidden="true"><strong>V2.0.1 /
+12-June-2026</strong></label>
 <div>
 <h2 id="main-changes-1">Main changes</h2>
 <ul>
-<li>First official release of RoT Provisioning SW Pack.</li>
+<li>Introduced a common project factory to reduce project-specific
+imports and simplify project handling.</li>
+<li>Renamed <code>oemirot/generic_provisioning.py</code> to
+<code>oemirot/provisioning.py</code>.</li>
 </ul>
 <h2 id="contents-1">Contents</h2>
 <ul>
@@ -1593,7 +1608,8 @@ preparation, and device configuration.</li>
 prebuild/postbuild and provisioning flows.</li>
 <li>Supported RoT example types:
 <ul>
-<li>oemirot_overwrite</li>
+<li>oemirot_dualslot</li>
+<li>oemirot_dualslot_hwcrypto</li>
 </ul></li>
 </ul>
 <h2 id="known-limitations-1">Known limitations</h2>
@@ -1615,6 +1631,50 @@ boards</h2>
 <li>None</li>
 </ul>
 <h2 id="dependencies-1">Dependencies</h2>
+<ul>
+<li>Python 3.10 or later.</li>
+</ul>
+</div>
+</div>
+<div class="collapse">
+<input type="checkbox" id="collapse-section1" aria-hidden="true">
+<label for="collapse-section1" aria-hidden="true"><strong>V2.0.0 /
+13-March-2026</strong></label>
+<div>
+<h2 id="main-changes-2">Main changes</h2>
+<ul>
+<li>First official release of RoT Provisioning SW Pack.</li>
+</ul>
+<h2 id="contents-2">Contents</h2>
+<ul>
+<li>Core RoT provisioning logic for memory flash layouts, image
+preparation, and device configuration.</li>
+<li>Shared Python scripts used by STM32 RoT examples to run
+prebuild/postbuild and provisioning flows.</li>
+<li>Supported RoT example types:
+<ul>
+<li>oemirot_overwrite</li>
+</ul></li>
+</ul>
+<h2 id="known-limitations-2">Known limitations</h2>
+<ul>
+<li>None</li>
+</ul>
+<h2 id="development-toolchains-and-compilers-2">Development toolchains
+and compilers</h2>
+<ul>
+<li>None</li>
+</ul>
+<h2 id="supported-devices-and-boards-2">Supported devices and
+boards</h2>
+<ul>
+<li>STM32C5xx series.</li>
+</ul>
+<h2 id="backward-compatibility-2">Backward compatibility</h2>
+<ul>
+<li>None</li>
+</ul>
+<h2 id="dependencies-2">Dependencies</h2>
 <ul>
 <li>Python 3.10 or later.</li>
 </ul>

@@ -12,16 +12,15 @@
 # ****************************************************************************
 
 import logging
-from helper.config.generic_config import Generic_Config
-from helper.config.provisioning_config import Provisioning_Config
-from helper.exception.rot_exception import RoTNotFoundError
+from helper.config.base import BaseConfig
+from helper.config.provisioning_base import BaseProvisioningConfig
 
 logger = logging.getLogger()
 
 
-class Project_Config(Generic_Config):
+class ProjectConfig(BaseConfig):
     """
-    Project_Config is a configuration handler class to handle project ini file, to provide build, linker, image & provisioning info.
+    ProjectConfig is a configuration handler class to handle project ini file, to provide build, linker, image & provisioning info.
 
     INI file example (path can be relative or absolute, relative paths are resolved
     relative to the location of the ini file):
@@ -66,9 +65,23 @@ class Project_Config(Generic_Config):
             Returns the environment variable name defined in provisioning.ini containing the path to STM32CubeProgrammer bin folder.
     """
 
-    def __init__(self, config_path: str, image_types: list[str] = [], header_list: list[str] = []):
-        self.image_types = image_types
-        self.header_list = header_list
+    def __init__(
+            self,
+            config_path: str,
+            provisioning_config_cls: type[BaseProvisioningConfig],
+            image_types: list[str] = [],
+            header_list: list[str] = []):
+        """
+        Args:
+            config_path (str): Path to the project config file.
+            provisioning_config_cls (type[BaseProvisioningConfig]): Provisioning config class used by this project.
+            image_types (list[str]): List of image types handled by the project.
+            header_list (list[str]): List of header names handled by the project.
+        """
+        # Copy the lists so each ProjectConfig instance owns its own mutable state
+        self.image_types = list(image_types)
+        self.header_list = list(header_list)
+        self.provisioning_config_cls = provisioning_config_cls
 
         self.image_information = {}
         self.headers_dict = {}
@@ -177,4 +190,4 @@ class Project_Config(Generic_Config):
         Returns:
             str: The environment variable name where the STM32CubeProgrammer bin folder path is stored.
         """
-        return Provisioning_Config(self.get_provisioning_ini_path()).get_tools_bin_env_name()
+        return self.provisioning_config_cls(self.get_provisioning_ini_path()).get_tools_bin_env_name()

@@ -12,15 +12,15 @@
 # ****************************************************************************
 
 import logging
-from helper.config.project_config import Project_Config
-from helper.config.provisioning_config import Provisioning_Config
+from helper.config.project import ProjectConfig
+from helper.config.variant import OEMIROT_VARIANT
 
 logger = logging.getLogger()
 
 
-class Appli_Config(Project_Config):
+class AppliProjectConfig(ProjectConfig):
     '''
-    Appli_Config is a configuration handler class to handle application ini file.
+    AppliProjectConfig is a configuration handler class to handle application ini file.
 
     INI file example (path can be relative or absolute, relative paths are resolved
     relative to the location of the ini file):
@@ -46,7 +46,7 @@ class Appli_Config(Project_Config):
         linker = /path/to/iar/linker
         build_output = /path/to/iar/output/file.bin
 
-    Methods (inherited from Project_Config):
+    Methods (inherited from ProjectConfig):
         get_provisioning_ini_path() -> str:
             Returns the absolute provisioning ini path.
         get_image_xml_path(image_type: str) -> str:
@@ -62,4 +62,5 @@ class Appli_Config(Project_Config):
     '''
 
     def __init__(self, config_path: str):
-        super().__init__(config_path, ["provisioning", "fwu"], ["appli_flash_layout"])
+        super().__init__(config_path, OEMIROT_VARIANT.provisioning_config_cls,
+                         ["provisioning", "fwu"], ["appli_flash_layout"])

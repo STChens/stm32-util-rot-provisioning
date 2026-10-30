@@ -13,7 +13,6 @@
 
 import logging
 import os
-import platform
 
 from helper.common.singleton import Singleton
 from helper.config.config_print_utils import print_config_dict
@@ -74,7 +73,7 @@ class Tools_Config(metaclass=Singleton):
             str: The full path to the tool executable.
         """
         tool_path = os.path.normpath(os.path.join(self.prog_path, tool_name))
-        if platform.system() == "Windows":
+        if os.name == "nt":
             tool_path += ".exe"
         return tool_path
 

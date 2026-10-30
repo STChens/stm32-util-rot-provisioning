@@ -13,22 +13,23 @@
 
 import logging
 from helper.common.singleton import Singleton
-from helper.config.example_config import Example_Config
-from helper.config.memory_config import Memory_Config
+from helper.config.example import ExampleConfig
+from helper.config.memory_base import BaseMemoryConfig
 from helper.exception.rot_exception import RoTNotFoundError, RoTNegativeValueError, RoTNotImplementedError
 
 logger = logging.getLogger()
 
 
-class Generic_FlashLayout(metaclass=Singleton):
+class BaseFlashLayout(metaclass=Singleton):
     """
-    Generic_FlashLayout is a class that provide the basics functions to calculates and manages the flash memory layout.
+    BaseFlashLayout is a class that provide the basics functions to calculates and manages the flash memory layout.
 
     Args:
         example_config (Example_Config): An instance of Example_Config containing memory and mcuboot configurations.
-        memory_config (Memory_Config): An instance of Memory_Config containing data size, data image number, and application size.
+        memory_config (BaseMemoryConfig): A memory configuration instance containing data size,
+            data image number, and application size.
     Attributes:
-        memory_config (Memory_Config): The memory configuration object.
+        memory_config (BaseMemoryConfig): The memory configuration object.
         memory_hw (dict): A dictionary containing hardware memory details retrieved from example_config.
         mcuboot (dict): A dictionary containing mcuboot details retrieved from example_config.
         memory_block_size (int): The size of the memory block in bytes.
@@ -66,7 +67,7 @@ class Generic_FlashLayout(metaclass=Singleton):
         RoTNotFoundError: If the define name is not found in the flash layout.
     """
 
-    def __init__(self, example_config: Example_Config, memory_config: Memory_Config):
+    def __init__(self, example_config: ExampleConfig, memory_config: BaseMemoryConfig):
         self.memory_config = memory_config
         self.memory_hw = example_config.get_memory()
         self.mcuboot = example_config.get_mcuboot()
@@ -75,12 +76,14 @@ class Generic_FlashLayout(metaclass=Singleton):
         self.obk = example_config.get_board()["obk"]
 
         self.memory_block_size = int(self.memory_hw["block_size"], 16)
-        self.memory_prog_size = int(self.memory_hw["prog_size"], 16)
+        self.memory_prog_size = int(self.memory_hw["prog_size"])
+        self.total_memory_size = int(self.memory_hw["total_size"], 16)
         self.base = int(self.memory_hw["base"], 16)
         self.vtor_alignment = int(self.memory_hw["vtor_alignment"], 16)
 
         self.img_install_req_size = int(self.mcuboot["image_install_req_size"], 16)
         self.img_version_offset = int(self.mcuboot["image_version_offset"], 16)
+        self.img_max_align_size = int(self.mcuboot["image_max_align_size"], 16)
 
         self.data_size = int(self.memory_config.get_data_size(), 16)
         self.nb_data_image = int(self.memory_config.get_data_image_number(), 16)

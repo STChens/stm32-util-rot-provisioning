@@ -15,23 +15,28 @@ from enum import Enum
 import logging
 
 from helper.common.log import ROT_Logger
-from helper.project.project_appli import Project_Appli
-from helper.project.project_generic import Project_Generic
-from helper.project.project_oemirot import Project_OEMiRoT
+from helper.project.oemirot.appli import OEMiRoTProjectAppli
+from helper.project.stirot.appli import STiRoTProjectAppli
+from helper.project.base import BaseProject
+from helper.project.oemirot.boot import OEMiRoTProjectBoot
 from helper.exception.rot_exception import RoTValueError
 
 
 class ProjectType(Enum):
     OEMIROT_BOOT = 1
     OEMIROT_APPLICATION = 2
+    STIROT_APPLICATION = 3
 
 
-def create_project(project_type: ProjectType, project_ini_path: str, rot_logger: ROT_Logger) -> Project_Generic:
+def create_project(project_type: ProjectType, project_ini_path: str, rot_logger: ROT_Logger) -> BaseProject:
     if project_type == ProjectType.OEMIROT_BOOT:
-        return Project_OEMiRoT(project_ini_path, rot_logger)
+        return OEMiRoTProjectBoot(project_ini_path, rot_logger)
 
     if project_type == ProjectType.OEMIROT_APPLICATION:
-        return Project_Appli(project_ini_path, rot_logger)
+        return OEMiRoTProjectAppli(project_ini_path, rot_logger)
+
+    if project_type == ProjectType.STIROT_APPLICATION:
+        return STiRoTProjectAppli(project_ini_path, rot_logger)
 
     raise RoTValueError(
         f"Project Type '{project_type}' is invalid.")
