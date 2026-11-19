@@ -11,6 +11,8 @@
 #
 # ****************************************************************************
 
+import os
+
 from helper.common.log import ROT_Logger
 from helper.common.update_file_handler import update_define_in_file
 from helper.config.oemirot.appli_project import AppliProjectConfig
@@ -61,6 +63,24 @@ class OEMiRoTProjectAppli(BaseProjectAppli):
         - generating the provisioning and fwu images
         """
         self._common_handle_postbuild(self.provisioning_config.get_config_keys_xml_path())
+        self._generate_optional_image_output("provisioning", "path_bin")
+
+    def _generate_optional_image_output(self, image_type: str, output_key: str):
+        image_section = f"image_{image_type}"
+        if not self.config.config.has_option(image_section, output_key):
+            return
+
+        output_path = self.config.get_absolute_path_from_config(
+            image_section, output_key, check_exists=False)
+        image_xml_path = self.config.get_image_xml_path(image_type)
+        relative_output_path = os.path.relpath(
+            output_path, os.path.dirname(image_xml_path))
+        self._update_image_xml(
+            image_type, "Output", "Image output file", "Value", relative_output_path)
+        try:
+            self._generate_image(image_type)
+        finally:
+            self._update_image_xml_output_path(image_type)
 
     def _write_default_image_xml(self):
         super()._write_default_image_xml()

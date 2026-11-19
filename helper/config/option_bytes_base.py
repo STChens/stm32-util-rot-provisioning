@@ -17,7 +17,16 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../"))
 from helper.exception.rot_exception import RoTUnexpectedError, RoTValueError
 
 
-def compute_wrp(start_address: int, end_address: int, wrpgrp_size: int, wrpgrp_ob_length: int, bank_size: int, block_size: int, wrp_ob_name: list[list[str]]) -> dict:
+def compute_wrp(
+    start_address: int,
+    end_address: int,
+    wrpgrp_size: int,
+    wrpgrp_ob_length: int,
+    bank_size: int,
+    block_size: int,
+    wrp_ob_name: list[list[str]],
+    mirror_first_bank: bool = False,
+) -> dict:
     """
     Computes WRP option bytes starting from start_address up to end_address in a continuous manner.
     Args:
@@ -28,6 +37,7 @@ def compute_wrp(start_address: int, end_address: int, wrpgrp_size: int, wrpgrp_o
         bank_size (int): Size of each bank in bytes.
         block_size (int): Size of each block in bytes.
         wrp_ob_name (list[list[str]]): List of option byte names per bank. (example : [["WRP1SGn1", "WRP1SGn2"], ["WRP2SGn1", "WRP2SGn2"]])
+        mirror_first_bank (bool): If True, copy the first bank's calculated values to the remaining banks.
     Raises:
         RoTUnexpectedError: If input parameters are invalid.
         RoTValueError: If end_address exceeds total memory size.
@@ -38,7 +48,9 @@ def compute_wrp(start_address: int, end_address: int, wrpgrp_size: int, wrpgrp_o
         raise RoTUnexpectedError("bank_size, block_size, wrpgrp_size must be > 0")
     if (bank_size * len(wrp_ob_name) <= end_address):
         raise RoTValueError("end_address exceeds total size.")
-    bank_count = len(wrp_ob_name)
+    if mirror_first_bank and end_address >= bank_size:
+        raise RoTValueError("Mirrored WRP range must be within the first bank.")
+    bank_count = 1 if mirror_first_bank else len(wrp_ob_name)
     wrp_gn_count = len(wrp_ob_name[0])
     size_to_protect = end_address - start_address + 1
     # Each group is represented by wrpgrp_ob_length bytes
@@ -77,10 +89,25 @@ def compute_wrp(start_address: int, end_address: int, wrpgrp_size: int, wrpgrp_o
             mask = (1 << (wrpgrp_ob_length * 8)) - 1
             value = (wrp_mask >> shift) & mask
             result[name] = f"0x{{:0{wrpgrp_ob_length * 2}x}}".format(value)
+
+    if mirror_first_bank:
+        first_bank_names = wrp_ob_name[0]
+        for bank_names in wrp_ob_name[1:]:
+            if len(bank_names) != len(first_bank_names):
+                raise RoTUnexpectedError("All WRP banks must have the same number of option bytes to mirror.")
+            for name, first_name in zip(bank_names, first_bank_names):
+                result[name] = result[first_name]
+
     return result
 
 
-def compute_hdp(hdp_end_offset: int, bank_size: int, hdp_block_size: int, hdp_ob_name: list[list[str]]) -> dict:
+def compute_hdp(
+    hdp_end_offset: int,
+    bank_size: int,
+    hdp_block_size: int,
+    hdp_ob_name: list[list[str]],
+    mirror_first_bank: bool = False,
+) -> dict:
     """
     Computes the HDP OB values starting from 0 up to hdp_end_offset in a continuous manner.
     Args:
@@ -88,6 +115,7 @@ def compute_hdp(hdp_end_offset: int, bank_size: int, hdp_block_size: int, hdp_ob
         bank_size (int): The size (in bytes) of each HDP bank.
         hdp_block_size (int): The size (in bytes) of each HDP block within a bank.
         hdp_ob_name (list[list[str]]): List of option bytes name per bank, (example : [["HDP1_STRT", "HDP1_END"], ["HDP2_STRT", "HDP2_END"]])
+        mirror_first_bank (bool): If True, copy the first bank's calculated values to the remaining banks.
     Raises:
         RoTUnexpectedError: If input parameters are invalid.
         RoTValueError: If hdp_end_offset exceeds total memory size.
@@ -99,11 +127,14 @@ def compute_hdp(hdp_end_offset: int, bank_size: int, hdp_block_size: int, hdp_ob
         raise RoTUnexpectedError("hdp_end_offset must be >= 0 and bank_size, hdp_block_size must be > 0")
     if (bank_size * len(hdp_ob_name) <= hdp_end_offset):
         raise RoTValueError("hdp_end_offset exceeds total size.")
+    if mirror_first_bank and hdp_end_offset >= bank_size:
+        raise RoTValueError("Mirrored HDP range must be within the first bank.")
     remaining_blocks = math.ceil((hdp_end_offset + 1) / hdp_block_size)
 
     blocks_in_bank = bank_size // hdp_block_size
     ob = {}
-    for hdp in hdp_ob_name:
+    banks_to_compute = hdp_ob_name[:1] if mirror_first_bank else hdp_ob_name
+    for hdp in banks_to_compute:
         if remaining_blocks == 0:
             ob[hdp[0]] = "0x1"
             ob[hdp[1]] = "0x0"
@@ -116,4 +147,13 @@ def compute_hdp(hdp_end_offset: int, bank_size: int, hdp_block_size: int, hdp_ob
             ob[hdp[0]] = "0x0"
             ob[hdp[1]] = hex(remaining_blocks - 1)
             remaining_blocks = 0
+
+    if mirror_first_bank:
+        first_bank_names = hdp_ob_name[0]
+        for bank_names in hdp_ob_name[1:]:
+            if len(bank_names) != len(first_bank_names):
+                raise RoTUnexpectedError("All HDP banks must have the same number of option bytes to mirror.")
+            for name, first_name in zip(bank_names, first_bank_names):
+                ob[name] = ob[first_name]
+
     return ob

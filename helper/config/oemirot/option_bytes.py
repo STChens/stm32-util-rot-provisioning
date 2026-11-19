@@ -59,13 +59,15 @@ def _compute_option_bytes_oemirot(
                 wrpgrp_ob_length = memory_dict["wrpgrp_ob_length"]
                 wrp_dict = compute_wrp(
                     start_address, end_address, wrpgrp_size, wrpgrp_ob_length,
-                    bank_size, block_size, ob["ob_name_per_bank"]
+                    bank_size, block_size, ob["ob_name_per_bank"],
+                    mirror_first_bank=ob.get("mirror_first_bank", False)
                 )
                 ob_dict.update(wrp_dict)
             elif ob_type == "HDP":
                 hdp_end_offset = flash_layout.get_flash_layout("FLASH_ROT_HDP_END_OFFSET")
                 hdp_dict = compute_hdp(
-                    hdp_end_offset, bank_size, hdp_block_size, ob["ob_name_per_bank"]
+                    hdp_end_offset, bank_size, hdp_block_size, ob["ob_name_per_bank"],
+                    mirror_first_bank=ob.get("mirror_first_bank", False)
                 )
                 ob_dict.update(hdp_dict)
             else:

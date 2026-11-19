@@ -166,6 +166,17 @@ class OEMiRoTProvisioningConfig(BaseProvisioningConfig):
         self.config_data_path = self.get_absolute_path_from_config('oemirot_config', 'data_bin_path')
         self.oemirot_ini_path = self.get_absolute_path_from_config('oemirot_config', 'oemirot_ini_path')
         self.oemirot_installation_mode = self.get_config_value('oemirot_config', 'installation_mode').lower()
+        raw_flash_addresses = self.config.get('oemirot_config', 'binary_flash_addresses', fallback='')
+        self.oemirot_binary_flash_addresses = [
+            address.strip() for address in raw_flash_addresses.split(',') if address.strip()
+        ]
+        for address in self.oemirot_binary_flash_addresses:
+            try:
+                int(address, 0)
+            except ValueError as exc:
+                raise RoTValueError(
+                    f"Invalid OEMiRoT binary flash address '{address}' in '{self.config_path}'."
+                ) from exc
         if (self.get_static_config()
                 and self.get_oemirot_installation_mode() != OEMiRoTInstallationMode.OVERWRITE):
             raise RoTValueError(
@@ -204,6 +215,10 @@ class OEMiRoTProvisioningConfig(BaseProvisioningConfig):
             str: The path to the OEMiROT ini file.
         """
         return self.oemirot_ini_path
+
+    def get_oemirot_binary_flash_addresses(self) -> list[str]:
+        """Return optional target addresses for programming the OEMiRoT binary."""
+        return self.oemirot_binary_flash_addresses
 
     def get_oemirot_installation_mode(self) -> OEMiRoTInstallationMode:
         """

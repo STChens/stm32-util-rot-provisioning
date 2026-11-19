@@ -159,7 +159,13 @@ class InstallationSubstep(Step):
             self.cube_programmer.flash_binary(appli_data_path_bin)
 
         self.cube_programmer.flash_binary(self.appli_config.get_image_binary_path("provisioning"))
-        self.cube_programmer.flash_binary(self.oemirot_config.get_build_binary_path())
+        oemirot_binary_path = self.oemirot_config.get_build_binary_path()
+        oemirot_flash_addresses = self.provisioning_config.get_oemirot_binary_flash_addresses()
+        if oemirot_flash_addresses:
+            for address in oemirot_flash_addresses:
+                self.cube_programmer.flash_binary(oemirot_binary_path, start_address=address)
+        else:
+            self.cube_programmer.flash_binary(oemirot_binary_path)
 
 
 class OBKProgrammingSubstep(Step):
