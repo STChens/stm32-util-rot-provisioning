@@ -11,6 +11,7 @@
 #
 # ****************************************************************************
 
+import configparser
 import logging
 from helper.config.project import ProjectConfig
 from helper.config.variant import OEMIROT_VARIANT
@@ -62,5 +63,10 @@ class AppliProjectConfig(ProjectConfig):
     '''
 
     def __init__(self, config_path: str):
+        project_config = configparser.ConfigParser()
+        project_config.read(config_path)
+        image_types = ["provisioning"]
+        if project_config.has_section("image_fwu"):
+            image_types.append("fwu")
         super().__init__(config_path, OEMIROT_VARIANT.provisioning_config_cls,
-                         ["provisioning", "fwu"], ["appli_flash_layout"])
+                         image_types, ["appli_flash_layout"])

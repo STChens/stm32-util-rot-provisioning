@@ -264,7 +264,11 @@ class OEMiRoTInstallationModeSelection(Step):
     """
 
     def __init__(self, config: OEMiRoTProvisioningConfig):
-        super().__init__(oemirot_configuration_substeps["installation_mode_selection"])
+        step_config = dict(oemirot_configuration_substeps["installation_mode_selection"])
+        step_config["questions"] = dict(step_config["questions"])
+        if int(config.memory_config.get_secondary_app_size(), 16) == 0:
+            step_config["questions"]["options"] = [OEMiRoTInstallationMode.OVERWRITE.value]
+        super().__init__(step_config)
         self.config = config
         self.log_param = {'path': config.config_path}
 

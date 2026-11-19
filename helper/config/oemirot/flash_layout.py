@@ -98,16 +98,20 @@ class OEMiRoTFlashLayout(BaseFlashLayout):
         data_slot_size = self._compute_data_size(self.data_size, self.nb_data_image)
         primary_app_slot_offset = primary_data_slot_offset + data_slot_size
         app_slot_size = self.app_size
+        secondary_app_slot_size = int(self.memory_config.get_secondary_app_size(), 16)
         secondary_app_slot_offset = primary_app_slot_offset + app_slot_size
-        secondary_data_slot_offset = secondary_app_slot_offset + app_slot_size
+        secondary_data_slot_offset = secondary_app_slot_offset + secondary_app_slot_size
 
         # Compute the end offset for WRP and HDP region for RoT internal handling
         rot_wrp_end_offset = self._compute_ob_end_offset(end_offset_wrp)
         rot_hdp_end_offset = self._compute_ob_end_offset(primary_data_slot_offset)
 
         # Compute the offset for Application internal handling
-        secondary_app_install_req_offset = self._compute_install_req_offset(
-            secondary_app_slot_offset, app_slot_size, self.img_install_req_size
+        secondary_app_install_req_offset = (
+            self._compute_install_req_offset(
+                secondary_app_slot_offset, secondary_app_slot_size, self.img_install_req_size
+            )
+            if secondary_app_slot_size > 0 else 0
         )
         primary_app_confirm_offset = self._compute_confirm_offset(
             primary_app_slot_offset, app_slot_size, self.img_install_req_size, self.img_max_align_size
@@ -151,7 +155,7 @@ class OEMiRoTFlashLayout(BaseFlashLayout):
         flash_layout["FLASH_PRIMARY_APP_SLOT_OFFSET"] = primary_app_slot_offset
         flash_layout["FLASH_PRIMARY_APP_SLOT_SIZE"] = app_slot_size
         flash_layout["FLASH_SECONDARY_APP_SLOT_OFFSET"] = secondary_app_slot_offset
-        flash_layout["FLASH_SECONDARY_APP_SLOT_SIZE"] = app_slot_size
+        flash_layout["FLASH_SECONDARY_APP_SLOT_SIZE"] = secondary_app_slot_size
         flash_layout["FLASH_SECONDARY_DATA_SLOT_OFFSET"] = secondary_data_slot_offset
         flash_layout["FLASH_SECONDARY_DATA_SLOT_SIZE"] = data_slot_size
 
@@ -213,11 +217,21 @@ class OEMiRoTFlashLayout(BaseFlashLayout):
         Raises:
             RoTValueError: If the computed flash layout exceeds the total memory size.
         """
+        if self.installation_mode == OEMiRoTInstallationMode.SWAP and \
+                self.flash_layout["FLASH_SECONDARY_APP_SLOT_SIZE"] == 0:
+            raise RoTValueError(
+                "SWAP installation mode requires a secondary application slot. Please use overwrite mode or configure a secondary slot.")
+
         if self.installation_mode == OEMiRoTInstallationMode.SWAP:
             self._validate_swap_mode()
 
         end_offset = self.flash_layout.get("FLASH_SECONDARY_DATA_SLOT_OFFSET", None) + \
             self.flash_layout.get("FLASH_SECONDARY_DATA_SLOT_SIZE", None) - 1
+        if self.flash_layout["FLASH_SECONDARY_APP_SLOT_SIZE"] == 0:
+            bank_size = int(self.memory_hw["bank_size"], 16)
+            if end_offset >= bank_size:
+                raise RoTValueError(
+                    f"Primary-only flash layout must fit within one memory bank ({hex(bank_size)}). Please update '{self.memory_config.config_path}'.")
         if end_offset >= self.total_memory_size:
             raise RoTValueError(
                 f"Computed flash layout exceeds total memory size. Please update '{self.memory_config.config_path}'.")

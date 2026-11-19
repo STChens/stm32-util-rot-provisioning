@@ -33,6 +33,7 @@ class OEMiRoTMemoryConfig(BaseMemoryConfig):
         [partition_size]
         oemirot_size = 0x18000
         app_size = 0xC0000
+        secondary_app_size = 0xC0000
         data_size = 0x2000
 
     Methods:
@@ -48,15 +49,19 @@ class OEMiRoTMemoryConfig(BaseMemoryConfig):
         Loads OEMiRoT-specific config fields.
         """
         self.oemirot_size = self.get_config_value('partition_size', 'oemirot_size')
+        self.secondary_app_size = self.config.get(
+            'partition_size', 'secondary_app_size', fallback=self.app_size)
 
     def _validate_variant_config(self) -> None:
         """
         Validates OEMiRoT-specific config fields.
         """
         self._validate_oemirot_size()
+        self._validate_secondary_app_size()
 
     def _set_variant_print_dict(self) -> None:
         self.print_config_items["OEMiRoT Size"] = self.oemirot_size
+        self.print_config_items["Secondary Application Size"] = self.secondary_app_size
 
     def get_oemirot_size(self) -> int:
         """
@@ -66,6 +71,28 @@ class OEMiRoTMemoryConfig(BaseMemoryConfig):
             int: The OEMiRoT size.
         """
         return self.oemirot_size
+
+    def get_secondary_app_size(self) -> str:
+        """
+        Returns the secondary application slot size from the configuration.
+
+        Returns:
+            str: The secondary application slot size in hexadecimal.
+        """
+        return self.secondary_app_size
+
+    def _validate_secondary_app_size(self) -> None:
+        """
+        Validates the optional secondary application slot size.
+        """
+        secondary_app_size_int = int(self.secondary_app_size, 16)
+        memory_bank_size = int(self.memory["bank_size"], 16)
+        if secondary_app_size_int < 0 or secondary_app_size_int >= memory_bank_size:
+            raise RoTValueError(
+                f"Secondary application size ({self.secondary_app_size}) must be non-negative and smaller than memory bank size ({hex(memory_bank_size)}). Please update '{self.config_path}'.")
+        if secondary_app_size_int % self.memory_block_size != 0:
+            raise RoTValueError(
+                f"Secondary application size ({self.secondary_app_size}) is not aligned to memory block size ({hex(self.memory_block_size)}). Please update '{self.config_path}'.")
 
     def _validate_oemirot_size(self) -> None:
         """

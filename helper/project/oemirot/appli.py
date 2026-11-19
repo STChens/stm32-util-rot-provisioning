@@ -46,11 +46,13 @@ class OEMiRoTProjectAppli(BaseProjectAppli):
 
         # Updating installation mode in image XML files
         self._update_installation_mode_xml("provisioning")
-        self._update_installation_mode_xml("fwu")
+        if 'fwu' in self.config.image_types:
+            self._update_installation_mode_xml("fwu")
 
         # Updating firmware area size in image XML files
         self._update_image_xml_firmware_area_size('provisioning')
-        self._update_image_xml_firmware_area_size('fwu')
+        if 'fwu' in self.config.image_types:
+            self._update_image_xml_firmware_area_size('fwu')
 
     def _custom_handle_postbuild(self):
         """
@@ -63,7 +65,8 @@ class OEMiRoTProjectAppli(BaseProjectAppli):
     def _write_default_image_xml(self):
         super()._write_default_image_xml()
         self._update_image_xml_firmware_area_size('provisioning', field="Default")
-        self._update_image_xml_firmware_area_size('fwu', field="Default")
+        if 'fwu' in self.config.image_types:
+            self._update_image_xml_firmware_area_size('fwu', field="Default")
 
     def _update_installation_mode_appli_flash_layout_header_file(self):
         """

@@ -33,8 +33,8 @@ class BaseProjectAppli(BaseProject):
         self._update_image_xml_input_path('provisioning')
         self._update_image_xml_hex_format('provisioning')
 
-        # Updating fwu xml
-        self._update_image_xml_input_path('fwu')
+        if 'fwu' in self.config.image_types:
+            self._update_image_xml_input_path('fwu')
 
         # Updating header file
         self._update_app_flash_layout_header_file("DATA_IMAGE_NUMBER")
@@ -61,11 +61,12 @@ class BaseProjectAppli(BaseProject):
         - generating the provisioning and fwu images
         """
         self._update_image_xml_keys_path('provisioning', key_path)
-        self._update_image_xml_keys_path('fwu', key_path)
         self._update_image_xml_output_path('provisioning')
-        self._update_image_xml_output_path('fwu')
         self._generate_image('provisioning')
-        self._generate_image('fwu')
+        if 'fwu' in self.config.image_types:
+            self._update_image_xml_keys_path('fwu', key_path)
+            self._update_image_xml_output_path('fwu')
+            self._generate_image('fwu')
 
     def _update_app_flash_layout_header_file(self, define_name: str):
         """
